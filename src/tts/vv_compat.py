@@ -36,15 +36,15 @@ class VoicevoxCompatTTS(TTSEngine):
     def _install_extra_models(self) -> None:
         """AivisHub の追加モデルURLをエンジンにインストール（AivisSpeechのみ）。
 
-        VERIFY: /aivm_models のインストールAPI仕様は初回セットアップ時に
-        実機で確認して必要なら修正すること（CLAUDE.md参照）。失敗しても
-        警告のみで続行する（既定モデルで放送は可能）。
+        /aivm_models/install は multipart/form-data で url を受け取る
+        （実機のOpenAPIスキーマで確認済み）。失敗しても警告のみで続行する
+        （既定モデルで放送は可能）。
         """
         for url in self.extra_model_urls:
             try:
                 r = requests.post(
                     f"{self.base_url}/aivm_models/install",
-                    params={"url": url}, timeout=300,
+                    files={"url": (None, url)}, timeout=300,
                 )
                 if r.status_code >= 400:
                     print(f"[warn] モデル追加に失敗 ({r.status_code}): {url}")
