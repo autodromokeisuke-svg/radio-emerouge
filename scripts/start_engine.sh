@@ -25,7 +25,7 @@ case "$ENGINE" in
       case "$ARCHIVE" in
         *.tar.gz|*.tgz) tar xzf ".engine/dl/$ARCHIVE" -C .engine/engine --strip-components=1 ;;
         *.zip)          unzip -q ".engine/dl/$ARCHIVE" -d .engine/engine ;;
-        *.7z)           7z x -o.engine/engine ".engine/dl/$ARCHIVE" ;;
+        *.7z|*.7z.001)  7z x -o.engine/engine ".engine/dl/$ARCHIVE" ;;
         *) echo "未対応のアーカイブ形式: $ARCHIVE"; exit 1 ;;
       esac
       # 展開直下に run が無い場合は1階層探す

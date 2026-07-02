@@ -21,8 +21,8 @@ tts:
   aivis:
     base_url: "http://127.0.0.1:10101"
     # 話者は「モデル名」と「スタイル名」で指定（tools/audition.py --list-speakers で一覧確認）
-    eme:  { speaker: "Anneli", style: "テンション高め" }
-    ruje: { speaker: "Anneli", style: "落ち着き" }
+    eme:  { speaker: "まお", style: "ノーマル" }
+    ruje: { speaker: "コハク", style: "ノーマル" }
     # AivisHubの追加モデル(.aivmx)を使う場合、ダウンロードURLをここに列挙
     # （CIが起動時にエンジンへのインストールを試みる。VERIFY項目）
     extra_model_urls: []
