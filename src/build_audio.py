@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,20 @@ from .tts import get_engine
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 TARGET_DBFS = -16.0
+
+# 英字略語＋カタカナ読みの二重読み防止パターン
+# 例: "TSMC（ティーエスエムシー）" / "GPT-4(ジーピーティーフォー)" -> カタカナ読みだけに置換
+_ALPHA_READING_GLOSS_RE = re.compile(
+    r"[A-Za-z][A-Za-z0-9\-]*[（(]([ァ-ヴー・]+)[）)]"
+)
+
+
+def _strip_alpha_reading_gloss(text: str) -> str:
+    """「英字（カタカナ読み）」を、英字を消してカタカナ読みだけに置換する。
+
+    括弧内がカタカナ以外の文字を含む場合（例: AI（人工知能））は対象外。
+    """
+    return _ALPHA_READING_GLOSS_RE.sub(r"\1", text)
 
 
 def _normalize(seg: AudioSegment) -> AudioSegment:
@@ -40,7 +55,8 @@ def build(lines: list[dict[str, str]], tts_cfg: dict[str, Any]) -> AudioSegment:
     failed = 0
     for i, ln in enumerate(lines, 1):
         try:
-            seg = engine.synth(ln["speaker"], ln["text"])
+            text = _strip_alpha_reading_gloss(ln["text"])
+            seg = engine.synth(ln["speaker"], text)
             show += _normalize(seg) + pause
         except Exception as e:  # noqa: BLE001
             failed += 1
