@@ -18,7 +18,7 @@ import yaml
 
 from .build_audio import build, export_mp3
 from .collect_news import collect
-from .make_feed import update_site
+from .make_feed import update_site, load_recent_glossary_terms
 from .write_script import write_script
 
 JST = timezone(timedelta(hours=9))
@@ -36,7 +36,10 @@ def main() -> None:
     print("=== 2/4 台本生成 ===")
     script_cfg = dict(cfg["script"])
     script_cfg["chars_per_minute"] = cfg["script"].get("chars_per_minute", 320)
-    script = write_script(news, script_cfg, minutes=int(show_cfg["minutes"]))
+    glossary_days = int(cfg["script"].get("glossary_reuse_avoid_days", 30))
+    recent_terms = load_recent_glossary_terms(ROOT / "site", days=glossary_days)
+    script = write_script(news, script_cfg, minutes=int(show_cfg["minutes"]),
+                          recent_terms=recent_terms)
 
     print("=== 3/4 収録 ===")
     audio = build(script["lines"], cfg["tts"])
@@ -54,6 +57,7 @@ def main() -> None:
         description=description[:400],
         base_url=base_url,
         show_cfg=show_cfg,
+        glossary_term=script.get("glossary_term", ""),
     )
     print("=== 放送完了！いってらっしゃい ===")
 

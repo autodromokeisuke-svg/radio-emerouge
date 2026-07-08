@@ -33,8 +33,73 @@ def _episode_meta(site: Path) -> list[dict[str, Any]]:
     return sorted(metas, key=lambda m: m["date"])  # 古い→新しい
 
 
+_GLOSSARY_KEEP_DAYS = 90
+
+
+def load_recent_glossary_terms(site: Path, days: int = 30) -> list[dict[str, str]]:
+    """site/glossary_history.json から、直近days日以内に使った用語一覧を返す。
+
+    ファイルが無い/壊れている場合は空リストを返す（例外を投げない）。
+    """
+    path = site / "glossary_history.json"
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(entries, list):
+        return []
+    cutoff = datetime.now(JST) - timedelta(days=days)
+    result = []
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        date = e.get("date", "")
+        term = e.get("term", "")
+        try:
+            dt = datetime.strptime(date, "%Y%m%d").replace(tzinfo=JST)
+        except ValueError:
+            continue
+        if dt >= cutoff:
+            result.append({"date": date, "term": term})
+    return result
+
+
+def record_glossary_term(site: Path, date_key: str, term: str) -> None:
+    """今日使った用語をsite/glossary_history.jsonに記録する。
+
+    term が空文字/Noneなら何もしない。
+    同じdate_keyの既存エントリがあれば上書きする（同日再実行時に重複させない）。
+    保存後、90日より古いエントリは削除してファイルサイズを抑える。
+    """
+    if not term:
+        return
+    path = site / "glossary_history.json"
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            entries = []
+    except (OSError, json.JSONDecodeError):
+        entries = []
+
+    entries = [e for e in entries if isinstance(e, dict) and e.get("date") != date_key]
+    entries.append({"date": date_key, "term": term})
+
+    cutoff = datetime.now(JST) - timedelta(days=_GLOSSARY_KEEP_DAYS)
+    kept = []
+    for e in entries:
+        try:
+            dt = datetime.strptime(e.get("date", ""), "%Y%m%d").replace(tzinfo=JST)
+        except ValueError:
+            continue
+        if dt >= cutoff:
+            kept.append(e)
+    kept.sort(key=lambda e: e["date"])
+
+    path.write_text(json.dumps(kept, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 def update_site(site: Path, mp3_src: Path, title: str, description: str,
-                base_url: str, show_cfg: dict[str, Any]) -> None:
+                base_url: str, show_cfg: dict[str, Any], glossary_term: str = "") -> None:
     episodes = site / "episodes"
     episodes.mkdir(parents=True, exist_ok=True)
 
@@ -53,6 +118,7 @@ def update_site(site: Path, mp3_src: Path, title: str, description: str,
         }, ensure_ascii=False, indent=1),
         encoding="utf-8",
     )
+    record_glossary_term(site, date_key, glossary_term)
 
     # ---- 古いエピソードの整理 ----
     metas = _episode_meta(site)

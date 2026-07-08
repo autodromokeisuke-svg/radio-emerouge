@@ -49,6 +49,19 @@ def _extract_json(text: str) -> dict[str, Any]:
     return json.loads(text[start:end + 1])
 
 
+def _format_recent_terms_block(recent_terms: list[dict[str, str]]) -> str:
+    if not recent_terms:
+        return "（まだ無し）"
+    ordered = sorted(recent_terms, key=lambda t: t.get("date", ""), reverse=True)
+    lines = []
+    for t in ordered:
+        date = t.get("date", "")
+        if len(date) == 8:
+            date = f"{date[:4]}-{date[4:6]}-{date[6:]}"
+        lines.append(f"- {date}: {t.get('term', '')}")
+    return "\n".join(lines)
+
+
 def _validate(data: dict[str, Any]) -> dict[str, Any]:
     lines = data.get("lines", [])
     if not isinstance(lines, list) or len(lines) < 8:
@@ -61,12 +74,16 @@ def _validate(data: dict[str, Any]) -> dict[str, Any]:
         clean.append({"speaker": sp, "text": tx})
     if len(clean) < 8:
         raise ValueError("有効なセリフが少なすぎる")
+    glossary_term = data.get("glossary_term")
+    if not isinstance(glossary_term, str):
+        glossary_term = ""
     return {"title": (data.get("title") or "RADIOえめるーじぇ").strip(),
+            "glossary_term": glossary_term.strip(),
             "lines": clean}
 
 
 def write_script(news: list[dict[str, str]], script_cfg: dict[str, Any],
-                 minutes: int) -> dict[str, Any]:
+                 minutes: int, recent_terms: list[dict[str, str]] | None = None) -> dict[str, Any]:
     target_chars = minutes * int(script_cfg.get("chars_per_minute", 320))
     prompt = PROMPT_PATH.read_text(encoding="utf-8").format(
         today=_today_label(),
@@ -74,6 +91,7 @@ def write_script(news: list[dict[str, str]], script_cfg: dict[str, Any],
         target_chars=target_chars,
         max_news=script_cfg.get("max_news", 4),
         news_block=_news_block(news),
+        recent_terms_block=_format_recent_terms_block(recent_terms or []),
     )
     client = Anthropic()
     messages = [{"role": "user", "content": prompt}]
