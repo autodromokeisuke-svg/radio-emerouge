@@ -107,6 +107,7 @@ def write_script(news: list[dict[str, str]], script_cfg: dict[str, Any],
         news_block=_news_block(news),
         recent_terms_block=_format_recent_terms_block(recent_terms or []),
         recent_news_block=_format_recent_news_block(recent_news or []),
+        news_reuse_avoid_days=script_cfg.get("news_reuse_avoid_days", 7),
     )
     client = Anthropic()
     messages = [{"role": "user", "content": prompt}]
