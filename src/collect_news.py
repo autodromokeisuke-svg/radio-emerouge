@@ -38,6 +38,16 @@ def _norm_title(title: str) -> str:
     return re.sub(r"[\s　【】\[\]（）()「」|｜:：\-–—・、。!！?？]", "", title).lower()
 
 
+def filter_recent(items: list[dict[str, str]],
+                  recent: list[dict[str, str]]) -> list[dict[str, str]]:
+    """直近で使用済みのニュース（タイトル完全一致 or リンク完全一致）を除外する。"""
+    seen_titles = {_norm_title(r.get("title", "")) for r in recent}
+    seen_links = {r["link"] for r in recent if r.get("link")}
+    return [it for it in items
+            if _norm_title(it["title"]) not in seen_titles
+            and (not it.get("link") or it["link"] not in seen_links)]
+
+
 def collect(feeds: list[str], keywords: list[str]) -> list[dict[str, str]]:
     now = time.time()
     kws = [k.lower() for k in keywords]

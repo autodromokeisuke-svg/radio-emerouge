@@ -34,6 +34,7 @@ def _episode_meta(site: Path) -> list[dict[str, Any]]:
 
 
 _GLOSSARY_KEEP_DAYS = 90
+_NEWS_KEEP_DAYS = 30
 
 
 def load_recent_glossary_terms(site: Path, days: int = 30) -> list[dict[str, str]]:
@@ -85,6 +86,70 @@ def record_glossary_term(site: Path, date_key: str, term: str) -> None:
     entries.append({"date": date_key, "term": term})
 
     cutoff = datetime.now(JST) - timedelta(days=_GLOSSARY_KEEP_DAYS)
+    kept = []
+    for e in entries:
+        try:
+            dt = datetime.strptime(e.get("date", ""), "%Y%m%d").replace(tzinfo=JST)
+        except ValueError:
+            continue
+        if dt >= cutoff:
+            kept.append(e)
+    kept.sort(key=lambda e: e["date"])
+
+    path.write_text(json.dumps(kept, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def load_recent_news_titles(site: Path, days: int = 7) -> list[dict[str, str]]:
+    """site/news_history.json から、直近days日以内に使ったニュース一覧を返す。
+
+    各要素は {"date": "20260711", "title": str, "link": str} の形。
+    ファイルが無い/壊れている場合は空リストを返す（例外を投げない）。
+    """
+    path = site / "news_history.json"
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(entries, list):
+        return []
+    cutoff = datetime.now(JST) - timedelta(days=days)
+    result = []
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        date = e.get("date", "")
+        title = e.get("title", "")
+        link = e.get("link", "")
+        try:
+            dt = datetime.strptime(date, "%Y%m%d").replace(tzinfo=JST)
+        except ValueError:
+            continue
+        if dt >= cutoff:
+            result.append({"date": date, "title": title, "link": link})
+    return result
+
+
+def record_used_news(site: Path, date_key: str, items: list[dict[str, str]]) -> None:
+    """今日使ったニュース一覧をsite/news_history.jsonに記録する。
+
+    items は [{"title": str, "link": str}, ...] のようなリスト
+    （dateキーは無くてよい、この関数内でdate_keyを付与する）。
+    同じdate_keyの既存エントリがあれば丸ごと上書きする（同日再実行時に重複させない）。
+    保存後、30日より古いエントリは削除する。
+    """
+    path = site / "news_history.json"
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            entries = []
+    except (OSError, json.JSONDecodeError):
+        entries = []
+
+    entries = [e for e in entries if isinstance(e, dict) and e.get("date") != date_key]
+    for it in items:
+        entries.append({"date": date_key, "title": it.get("title", ""), "link": it.get("link", "")})
+
+    cutoff = datetime.now(JST) - timedelta(days=_NEWS_KEEP_DAYS)
     kept = []
     for e in entries:
         try:

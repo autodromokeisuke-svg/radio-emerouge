@@ -17,8 +17,13 @@ from pathlib import Path
 import yaml
 
 from .build_audio import build, export_mp3
-from .collect_news import collect
-from .make_feed import update_site, load_recent_glossary_terms
+from .collect_news import collect, filter_recent
+from .make_feed import (
+    update_site,
+    load_recent_glossary_terms,
+    load_recent_news_titles,
+    record_used_news,
+)
 from .write_script import write_script
 
 JST = timezone(timedelta(hours=9))
@@ -32,6 +37,9 @@ def main() -> None:
 
     print("=== 1/4 ニュース収集 ===")
     news = collect(cfg["news_feeds"], cfg.get("keyword_filter", []))
+    news_days = int(cfg["script"].get("news_reuse_avoid_days", 7))
+    recent_news = load_recent_news_titles(ROOT / "site", days=news_days)
+    news = filter_recent(news, recent_news)
 
     print("=== 2/4 台本生成 ===")
     script_cfg = dict(cfg["script"])
@@ -39,7 +47,7 @@ def main() -> None:
     glossary_days = int(cfg["script"].get("glossary_reuse_avoid_days", 30))
     recent_terms = load_recent_glossary_terms(ROOT / "site", days=glossary_days)
     script = write_script(news, script_cfg, minutes=int(show_cfg["minutes"]),
-                          recent_terms=recent_terms)
+                          recent_terms=recent_terms, recent_news=recent_news)
 
     print("=== 3/4 収録 ===")
     audio = build(script["lines"], cfg["tts"])
@@ -48,7 +56,8 @@ def main() -> None:
 
     print("=== 4/4 配信更新 ===")
     now = datetime.now(JST)
-    picked = [n["title"] for n in news[: cfg["script"].get("max_news", 4)]]
+    used_news = news[: cfg["script"].get("max_news", 4)]
+    picked = [n["title"] for n in used_news]
     description = "今日の話題: " + " / ".join(picked) if picked else show_cfg["description"]
     update_site(
         site=ROOT / "site",
@@ -59,6 +68,8 @@ def main() -> None:
         show_cfg=show_cfg,
         glossary_term=script.get("glossary_term", ""),
     )
+    record_used_news(ROOT / "site", now.strftime("%Y%m%d"),
+                     [{"title": n["title"], "link": n.get("link", "")} for n in used_news])
     print("=== 放送完了！いってらっしゃい ===")
 
 

@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from mutagen.id3 import ID3, APIC, ID3NoHeaderError
 from pydub import AudioSegment
 
 from .tts import get_engine
@@ -75,9 +76,33 @@ def build(lines: list[dict[str, str]], tts_cfg: dict[str, Any]) -> AudioSegment:
     return show
 
 
+def _embed_cover_art(mp3_path: Path, cover_path: Path) -> None:
+    try:
+        try:
+            tags = ID3(mp3_path)
+        except ID3NoHeaderError:
+            tags = ID3()
+        tags.delall("APIC")
+        tags.add(APIC(
+            encoding=3,
+            mime="image/jpeg",
+            type=3,  # front cover
+            desc="Cover",
+            data=cover_path.read_bytes(),
+        ))
+        tags.save(mp3_path)
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] カバー画像の埋め込みに失敗: {e}")
+
+
 def export_mp3(show: AudioSegment, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     show.export(out_path, format="mp3", bitrate="96k",
                 tags={"artist": "えめるーじぇ"})
+
+    cover_path = ASSETS / "cover.jpg"
+    if cover_path.exists():
+        _embed_cover_art(out_path, cover_path)
+
     size_mb = out_path.stat().st_size / 1024 / 1024
     print(f"[ok] 書き出し: {out_path} ({size_mb:.1f} MB)")
