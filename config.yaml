@@ -21,12 +21,12 @@ tts:
   aivis:
     base_url: "http://127.0.0.1:10101"
     # 話者は「モデル名」と「スタイル名」で指定（tools/audition.py --list-speakers で一覧確認）
-    eme:  { speaker: "大日椛_T2モデル", style: "Negative" }
+    eme:  { speaker: "木角空_T2モデル", style: "Positive" }
     ruje: { speaker: "水巻咲_T2モデル", style: "Positive" }
     # AivisHubの追加モデル(.aivmx)を使う場合、ダウンロードURLをここに列挙
     # （CIが起動時にエンジンへのインストールを試みる）
     extra_model_urls:
-      - "https://api.aivis-project.com/v1/aivm-models/fb04b883-13cb-40ef-b0ea-fad060a408e8/download?model_type=AIVMX"  # 大日椛_T2モデル
+      - "https://api.aivis-project.com/v1/aivm-models/d0471c7d-3adc-4c99-b7b7-0e91c4d9d96f/download?model_type=AIVMX"  # 木角空_T2モデル
       - "https://api.aivis-project.com/v1/aivm-models/55696911-05cb-4cd2-bdb9-dbc8bfe6e5c7/download?model_type=AIVMX"  # 水巻咲_T2モデル
 
   voicevox:
