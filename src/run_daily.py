@@ -56,7 +56,10 @@ def main() -> None:
 
     print("=== 4/4 配信更新 ===")
     now = datetime.now(JST)
-    used_news = news[: cfg["script"].get("max_news", 4)]
+    covered_titles = script.get("covered_news_titles") or []
+    used_news = [n for n in news if n["title"] in covered_titles]
+    if not used_news:
+        used_news = news[: cfg["script"].get("max_news", 4)]
     picked = [n["title"] for n in used_news]
     description = "今日の話題: " + " / ".join(picked) if picked else show_cfg["description"]
     update_site(
